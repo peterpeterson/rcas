@@ -1,13 +1,11 @@
 # mcsc-ui
 
 ## Building with Docker
-
-```build.bat
 ```
-
+build.bat
+```
 ## Running development server
-
-```python server.py
 ```
-
+python server.py
+```
 ## Browse to localhost:9000
