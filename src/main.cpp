@@ -12,164 +12,226 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <iostream>
+#include <vector>
+#include <sstream>
 
-
-GLFWwindow* g_window;
+GLFWwindow *g_window;
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-ImGuiContext* imgui = 0;
+ImGuiContext *imgui = 0;
 bool show_demo_window = true;
-bool show_another_window = false;
+bool show_another_window = true;
+std::vector<std::string> Items;
+ImGuiTextFilter Filter;
+
+        bool m_shouldOutputData = true;
+        bool m_shouldAutoScroll = true;
+        bool m_shouldScrollToBottom = true;
+        bool m_isRegistered = false;
+
+        void clearLog();
+        void sendCommand();
+        void debugMessageHandler(const std::string& msg);
 
 EM_JS(int, canvas_get_width, (), {
-  return Module.canvas.width;
+    return Module.canvas.width;
 });
 
 EM_JS(int, canvas_get_height, (), {
-  return Module.canvas.height;
+    return Module.canvas.height;
 });
 
 EM_JS(void, resizeCanvas, (), {
-  js_resizeCanvas();
+    js_resizeCanvas();
 });
 
 void loop()
 {
-  int width = canvas_get_width();
-  int height = canvas_get_height();
+    int width = canvas_get_width();
+    int height = canvas_get_height();
 
-  glfwSetWindowSize(g_window, width, height);
+    glfwSetWindowSize(g_window, width, height);
 
-  ImGui::SetCurrentContext(imgui);
+    ImGui::SetCurrentContext(imgui);
 
-  ImGui_ImplOpenGL3_NewFrame();
-  ImGui_ImplGlfw_NewFrame();
-  ImGui::NewFrame();
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 
-  // 1. Show a simple window.
-  // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets automatically appears in a window called "Debug".
-  {
-      static float f = 0.0f;
-      static int counter = 0;
-      ImGui::Text("Hello, world!");                           // Display some text (you can use a format string too)
-      ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-      ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+    {
+        std::stringstream ss;
+        ss << "Application average " << 1000.0f / ImGui::GetIO().Framerate << "ms/frame (" << ImGui::GetIO().Framerate << " FPS)";
+        debugMessageHandler(ss.str());
 
-      ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our windows open/close state
-      ImGui::Checkbox("Another Window", &show_another_window);
+    }
 
-      if (ImGui::Button("Button"))                            // Buttons return true when clicked (NB: most widgets return true when edited/activated)
-          counter++;
-      ImGui::SameLine();
-      ImGui::Text("counter = %d", counter);
+    {
+        
+        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Server Console");
 
-      ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-  }
+        if (ImGui::Button("Clear"))
+        {
+            clearLog();
+        }
 
-  //std::cout << "2nd window" << std::endl;
+        ImGui::SameLine();
 
-  // 2. Show another simple window. In most cases you will use an explicit Begin/End pair to name your windows.
-  if (show_another_window)
-  {
-      ImGui::Begin("Another Window", &show_another_window);
-      ImGui::Text("Hello from another window!");
-      if (ImGui::Button("Close Me"))
-          show_another_window = false;
-      ImGui::End();
-  }
+        // Options menu
+        if (ImGui::BeginPopup("Options"))
+        {
+            ImGui::Checkbox("Auto-scroll", &m_shouldAutoScroll);
+            ImGui::EndPopup();
+        }
 
-  // 3. Show the ImGui demo window. Most of the sample code is in ImGui::ShowDemoWindow(). Read its code to learn more about Dear ImGui!
-  if (show_demo_window)
-  {
-      ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver); // Normally user code doesn't need/want to call this because positions are saved in .ini file anyway. Here we just want to make the demo initial state a bit more friendly!
-      ImGui::ShowDemoWindow(&show_demo_window);
-  }
+        // Options, Filter
+        if (ImGui::Button("Options"))
+        {
+            ImGui::OpenPopup("Options");
+        }
 
-  ImGui::Render();
+        ImGui::Separator();
 
-  int display_w, display_h;
-  glfwMakeContextCurrent(g_window);
-  glfwGetFramebufferSize(g_window, &display_w, &display_h);
-  glViewport(0, 0, display_w, display_h);
-  glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-  glClear(GL_COLOR_BUFFER_BIT);
+        const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing(); // 1 separator, 1 input text
 
-  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-  glfwMakeContextCurrent(g_window);
+        ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar); // Leave room for 1 separator + 1 InputText
+        if (ImGui::BeginPopupContextWindow())
+        {
+            if (ImGui::Selectable("Clear"))
+            {
+                clearLog();
+            }
+            ImGui::EndPopup();
+        }
+
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tighten spacing
+        
+        for (unsigned int i = 0; i < Items.size(); i++)
+        {
+            const char *item = Items[i].c_str();
+            ImGui::TextUnformatted(item);
+        }
+
+        if (m_shouldScrollToBottom || (m_shouldAutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()))
+        {
+            ImGui::SetScrollHere(1.0f);
+        }
+
+        m_shouldScrollToBottom = false;
+
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
+
+        static char buf1[64] = ""; 
+        ImGui::InputText("", buf1, 64);
+        ImGui::SameLine();
+        if (ImGui::Button("Send"))
+        {
+            sendCommand();
+        }
+
+        ImGui::End();
+    }
+
+
+    ImGui::Render();
+
+    int display_w, display_h;
+    glfwMakeContextCurrent(g_window);
+    glfwGetFramebufferSize(g_window, &display_w, &display_h);
+    glViewport(0, 0, display_w, display_h);
+    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    glfwMakeContextCurrent(g_window);
+}
+
+void clearLog()
+{
+    Items.clear();
+}
+
+void sendCommand()
+{
+
+}
+
+void debugMessageHandler(const std::string& msg)
+{
+    Items.push_back(msg);
 }
 
 
 int init()
 {
-  if( !glfwInit() )
-  {
-      fprintf( stderr, "Failed to initialize GLFW\n" );
-      return 1;
-  }
+    if (!glfwInit())
+    {
+        fprintf(stderr, "Failed to initialize GLFW\n");
+        return 1;
+    }
 
-  //glfwWindowHint(GLFW_SAMPLES, 4); // 4x antialiasing
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // We don't want the old OpenGL
+    //glfwWindowHint(GLFW_SAMPLES, 4); // 4x antialiasing
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // We don't want the old OpenGL
 
-  // Open a window and create its OpenGL context
-  int canvasWidth = 800;
-  int canvasHeight = 600;
-  g_window = glfwCreateWindow( canvasWidth, canvasHeight, "WebGui Demo", NULL, NULL);
-  if( g_window == NULL )
-  {
-      fprintf( stderr, "Failed to open GLFW window.\n" );
-      glfwTerminate();
-      return -1;
-  }
-  glfwMakeContextCurrent(g_window); // Initialize GLEW
+    // Open a window and create its OpenGL context
+    int canvasWidth = 800;
+    int canvasHeight = 600;
+    g_window = glfwCreateWindow(canvasWidth, canvasHeight, "WebGui Demo", NULL, NULL);
+    if (g_window == NULL)
+    {
+        fprintf(stderr, "Failed to open GLFW window.\n");
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(g_window); // Initialize GLEW
 
-  // Create game objects
-  // Setup Dear ImGui binding
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-  ImGuiIO& io = ImGui::GetIO();
+    // Create game objects
+    // Setup Dear ImGui binding
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
 
-  ImGui_ImplGlfw_InitForOpenGL(g_window, false);
-  ImGui_ImplOpenGL3_Init();
+    ImGui_ImplGlfw_InitForOpenGL(g_window, false);
+    ImGui_ImplOpenGL3_Init();
 
-  // Setup style
-  ImGui::StyleColorsDark();
-  //ImGui::StyleColorsClassic();
+    // Setup style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsClassic();
 
-  // Load Fonts
-  // io.Fonts->AddFontFromFileTTF("data/xkcd-script.ttf", 23.0f);
-  // io.Fonts->AddFontFromFileTTF("data/xkcd-script.ttf", 18.0f);
-  // io.Fonts->AddFontFromFileTTF("data/xkcd-script.ttf", 26.0f);
-  // io.Fonts->AddFontFromFileTTF("data/xkcd-script.ttf", 32.0f);
-  io.Fonts->AddFontDefault();
+    io.Fonts->AddFontDefault();
 
-  imgui =  ImGui::GetCurrentContext();
+    imgui = ImGui::GetCurrentContext();
 
-  // Cursor callbacks
-  glfwSetMouseButtonCallback(g_window, ImGui_ImplGlfw_MouseButtonCallback);
-  glfwSetScrollCallback(g_window, ImGui_ImplGlfw_ScrollCallback);
-  glfwSetKeyCallback(g_window, ImGui_ImplGlfw_KeyCallback);
-  glfwSetCharCallback(g_window, ImGui_ImplGlfw_CharCallback);
+    // Cursor callbacks
+    glfwSetMouseButtonCallback(g_window, ImGui_ImplGlfw_MouseButtonCallback);
+    glfwSetScrollCallback(g_window, ImGui_ImplGlfw_ScrollCallback);
+    glfwSetKeyCallback(g_window, ImGui_ImplGlfw_KeyCallback);
+    glfwSetCharCallback(g_window, ImGui_ImplGlfw_CharCallback);
 
-  resizeCanvas();
+    resizeCanvas();
 
-  return 0;
+    return 0;
 }
-
 
 void quit()
 {
-  glfwTerminate();
+    glfwTerminate();
 }
 
-
-extern "C" int main(int argc, char** argv)
+extern "C" int main(int argc, char **argv)
 {
-  if (init() != 0) return 1;
+    (void) argc;
+    (void) argv;
 
-  #ifdef __EMSCRIPTEN__
-  emscripten_set_main_loop(loop, 0, 1);
-  #endif
+    if (init() != 0)
+        return 1;
 
-  quit();
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(loop, 0, 1);
+#endif
 
-  return 0;
+    quit();
+
+    return 0;
 }
