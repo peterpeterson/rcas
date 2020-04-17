@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
 
-project(imguiTest)
+project(mcsc)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic -Wextra -Wno-missing-braces")
 
@@ -13,7 +13,7 @@ else()
 endif()
 
 include_directories(src)
-include_directories(SYSTEM external ${SDL2_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS})
+include_directories(SYSTEM external ${GLFW3_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS})
 
 add_executable(index
     external/imgui.h

@@ -23,14 +23,15 @@ bool show_another_window = true;
 std::vector<std::string> Items;
 ImGuiTextFilter Filter;
 
-        bool m_shouldOutputData = true;
-        bool m_shouldAutoScroll = true;
-        bool m_shouldScrollToBottom = true;
-        bool m_isRegistered = false;
+bool m_shouldOutputData = true;
+bool m_shouldAutoScroll = true;
+bool m_shouldScrollToBottom = true;
+bool m_isRegistered = false;
+static char buf1[64] = "";
 
-        void clearLog();
-        void sendCommand();
-        void debugMessageHandler(const std::string& msg);
+void clearLog();
+void sendCommand();
+void debugMessageHandler(const std::string &msg);
 
 EM_JS(int, canvas_get_width, (), {
     return Module.canvas.width;
@@ -61,11 +62,10 @@ void loop()
         std::stringstream ss;
         ss << "Application average " << 1000.0f / ImGui::GetIO().Framerate << "ms/frame (" << ImGui::GetIO().Framerate << " FPS)";
         debugMessageHandler(ss.str());
-
     }
 
     {
-        
+
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
         ImGui::Begin("Server Console");
@@ -105,7 +105,7 @@ void loop()
         }
 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tighten spacing
-        
+
         for (unsigned int i = 0; i < Items.size(); i++)
         {
             const char *item = Items[i].c_str();
@@ -122,17 +122,19 @@ void loop()
         ImGui::PopStyleVar();
         ImGui::EndChild();
 
-        static char buf1[64] = ""; 
+
+        ImGui::SetKeyboardFocusHere(0);        
         ImGui::InputText("", buf1, 64);
         ImGui::SameLine();
-        if (ImGui::Button("Send"))
+
+
+        if (ImGui::Button("Send") || ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Enter]))
         {
             sendCommand();
         }
 
         ImGui::End();
     }
-
 
     ImGui::Render();
 
@@ -154,14 +156,14 @@ void clearLog()
 
 void sendCommand()
 {
-
+    Items.push_back(buf1);
+    *buf1 = 0;
 }
 
-void debugMessageHandler(const std::string& msg)
+void debugMessageHandler(const std::string &msg)
 {
     Items.push_back(msg);
 }
-
 
 int init()
 {
@@ -221,8 +223,8 @@ void quit()
 
 extern "C" int main(int argc, char **argv)
 {
-    (void) argc;
-    (void) argv;
+    (void)argc;
+    (void)argv;
 
     if (init() != 0)
         return 1;
