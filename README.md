@@ -19,7 +19,8 @@ Running inside Chrome
 ![Alt text](/rcas-screencap.PNG?raw=true "RCAS in Chrome")
 
 ## Compatability
-Seems to work on Windows, macOS, and Linux w/ Chrome and Firefox. iOS does not seem to render, probably due to GLFW bindings...
+Seems to load on browsers running Windows, macOS, and Linux w/ Chrome and Firefox. iOS does not seem to render, probably due to GLFW bindings...
+The server should run cross platform, but only has been tested on Windows at this moment.
 
 ## Building
 ### Prerequisites
