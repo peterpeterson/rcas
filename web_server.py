@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+#
+# mcsc - Development web server for webassembly UI
+#
 import http.server, http.server, os
  
 os.chdir(os.path.join('build'))

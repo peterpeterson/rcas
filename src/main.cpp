@@ -1,3 +1,7 @@
+//
+// mcsc
+// Peter Peterson <peter@saborgato.com>
+//
 #include <stdio.h>
 
 #ifdef __EMSCRIPTEN__
@@ -28,7 +32,7 @@ bool m_shouldOutputData = true;
 bool m_shouldAutoScroll = true;
 bool m_shouldScrollToBottom = true;
 bool m_isRegistered = false;
-static char buf1[64] = "";
+static char m_command[64] = "";
 
 void clearLog();
 void sendCommand();
@@ -39,13 +43,6 @@ EMSCRIPTEN_WEBSOCKET_T sendSocket;
 EM_BOOL webSocketOpen(int eventType, const EmscriptenWebSocketOpenEvent *e, void *userData)
 {
 	printf("open(eventType=%d, userData=%d)\n", eventType, (int)userData);
-
-	//emscripten_websocket_send_utf8_text(e->socket, "hello on the other side");
-
-	// char data[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	// emscripten_websocket_send_binary(e->socket, data, sizeof(data));
-
-	// emscripten_websocket_close(e->socket, 0, 0);
 	return 0;
 }
 
@@ -118,20 +115,20 @@ void loop()
             clearLog();
         }
 
-        // ImGui::SameLine();
+        ImGui::SameLine();
 
-        // // Options menu
-        // if (ImGui::BeginPopup("Options"))
-        // {
-        //     ImGui::Checkbox("Auto-scroll", &m_shouldAutoScroll);
-        //     ImGui::EndPopup();
-        // }
+        // Options menu
+        if (ImGui::BeginPopup("Options"))
+        {
+            ImGui::Checkbox("Auto-scroll", &m_shouldAutoScroll);
+            ImGui::EndPopup();
+        }
 
-        // // Options, Filter
-        // if (ImGui::Button("Options"))
-        // {
-        //     ImGui::OpenPopup("Options");
-        // }
+        // Options, Filter
+        if (ImGui::Button("Options"))
+        {
+            ImGui::OpenPopup("Options");
+        }
 
         ImGui::Separator();
 
@@ -167,7 +164,7 @@ void loop()
 
 
         ImGui::SetKeyboardFocusHere(0);        
-        ImGui::InputText("", buf1, 64);
+        ImGui::InputText("", m_command, 64);
         ImGui::SameLine();
 
 
@@ -199,8 +196,8 @@ void clearLog()
 
 void sendCommand()
 {
-    emscripten_websocket_send_utf8_text(sendSocket, buf1);
-    *buf1 = 0;
+    emscripten_websocket_send_utf8_text(sendSocket, m_command);
+    *m_command = 0;
 }
 
 void logMessageHandler(const std::string &msg)
@@ -264,13 +261,8 @@ int init()
     std::stringstream hostnamess;
 
     hostnamess << "ws://" << (char*) get_hostname() << ":9001/";
-    //attr.url = hostnamess.str().c_str();
-
     const char* pszHostname = strdup(hostnamess.str().c_str());
     attr.url = pszHostname;
-    
-
-
     printf("%s\n", attr.url);
 
     std::stringstream connectmsg;
@@ -283,7 +275,7 @@ int init()
 
     {
         std::stringstream ss;
-        ss << "New web socket returned handle of " << sendSocket;
+        ss << "Websocket connected and returned handle of " << sendSocket;
         logMessageHandler(ss.str());
     }
 

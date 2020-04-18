@@ -1,3 +1,7 @@
+#
+# mcsc
+# Peter Peterson <peter@saborgato.com>
+#
 from subprocess import *
 from threading import Thread
 import time

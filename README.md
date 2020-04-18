@@ -7,14 +7,14 @@ build.bat
 ## Running web development server
 Default port is 9000
 ```
-python server.py
+python web_server.py
 ```
 
-### Start Console Application Server
+### Start Application Server
 Default port is 9001
-Default application is bedrock_server.exe
+Default application is bedrock_server.exe (was originally built to remote minecraft)
 ```
-python console_app_server.py
+python app_server.py
 ```
 
 ## Browse to localhost:9000
