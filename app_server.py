@@ -168,7 +168,7 @@ async def ws_handler(websocket, path):
             task.cancel()
 
     elif path == '/console':
-        cas.broadcast_message(f"Client connected from {websocket.remote_address}")
+        cas.broadcast_message(f"Client [{websocket.remote_address[1]}] connected from remote IP {websocket.remote_address[0]}")
 
         await websocket.send(f"Connected to RCAS process: {cas.process.args}")
 
@@ -184,7 +184,7 @@ async def ws_handler(websocket, path):
 
         for task in pending:
             cas.destroy_queue(websocket)
-            cas.broadcast_message(f"Client disconnected from {websocket.remote_address}")
+            cas.broadcast_message(f"Client [{websocket.remote_address[1]}] disconnected")
             task.cancel()
 
     else:

@@ -35,6 +35,7 @@ bool m_shouldAutoScroll = true;
 bool m_shouldScrollToBottom = true;
 bool m_resetFocusAfterEnter = false;
 bool m_resetChatFocusAfterEnter = false;
+bool m_serverConnectionClosed = false;
 
 
 void clearLog();
@@ -56,6 +57,7 @@ EM_BOOL webSocketOpen(int eventType, const EmscriptenWebSocketOpenEvent *e, void
 EM_BOOL webSocketClose(int eventType, const EmscriptenWebSocketCloseEvent *e, void *userData)
 {
 	printf("close(eventType=%d, wasClean=%d, code=%d, reason=%s, userData=%d)\n", eventType, e->wasClean, e->code, e->reason, (int)userData);
+    m_serverConnectionClosed = true;
 	return 0;
 }
 
@@ -165,20 +167,22 @@ void loop()
         ImGui::PopStyleVar();
         ImGui::EndChild();
 
-
-        if (m_resetChatFocusAfterEnter)
+        if (!m_serverConnectionClosed)
         {
-            m_resetChatFocusAfterEnter = false;
-            ImGui::SetKeyboardFocusHere(0);        
-        }
-        ImGui::InputText("", m_chat, 1024);
-        ImGui::SameLine();
+            if (m_resetChatFocusAfterEnter)
+            {
+                m_resetChatFocusAfterEnter = false;
+                ImGui::SetKeyboardFocusHere(0);        
+            }
+            ImGui::InputText("", m_chat, 1024);
+            ImGui::SameLine();
 
 
-        if (ImGui::Button("Send") || (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Enter])))
-        {
-            sendChat(m_chat);
-            m_resetChatFocusAfterEnter = true;
+            if (ImGui::Button("Send") || (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Enter])))
+            {
+                sendChat(m_chat);
+                m_resetChatFocusAfterEnter = true;
+            }
         }
 
         ImGui::End();
@@ -288,43 +292,49 @@ void loop()
         ImGui::PopStyleVar();
         ImGui::EndChild();
 
-
-        if (m_resetFocusAfterEnter)
+        if (!m_serverConnectionClosed)
         {
-            m_resetFocusAfterEnter = false;
-            ImGui::SetKeyboardFocusHere(0);        
+            if (m_resetFocusAfterEnter)
+            {
+                m_resetFocusAfterEnter = false;
+                ImGui::SetKeyboardFocusHere(0);
+            }
+            ImGui::InputText("", m_command, 1024);
+            ImGui::SameLine();
+
+            if (ImGui::Button("Send") || (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Enter])))
+            {
+                sendCommand(m_command);
+                m_resetFocusAfterEnter = true;
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Clear"))
+            {
+                clearLog();
+            }
+
+            ImGui::SameLine();
+
+            // Options menu
+            if (ImGui::BeginPopup("Options"))
+            {
+                ImGui::Checkbox("Auto-scroll", &m_shouldAutoScroll);
+                ImGui::EndPopup();
+            }
+
+            // Options, Filter
+            if (ImGui::Button("Options"))
+            {
+                ImGui::OpenPopup("Options");
+            }
         }
-        ImGui::InputText("", m_command, 1024);
-        ImGui::SameLine();
-
-
-        if (ImGui::Button("Send") || (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Enter])))
+        else
         {
-            sendCommand(m_command);
-            m_resetFocusAfterEnter = true;
+            ImGui::Text("Server connection closed. Please refresh browser to retry.");
         }
-
-        ImGui::SameLine();
-
-        if (ImGui::Button("Clear"))
-        {
-            clearLog();
-        }
-
-        ImGui::SameLine();
-
-        // Options menu
-        if (ImGui::BeginPopup("Options"))
-        {
-            ImGui::Checkbox("Auto-scroll", &m_shouldAutoScroll);
-            ImGui::EndPopup();
-        }
-
-        // Options, Filter
-        if (ImGui::Button("Options"))
-        {
-            ImGui::OpenPopup("Options");
-        }
+        
 
         ImGui::SameLine();
         ImGui::Text("client: 1.0.0-beta.1");
