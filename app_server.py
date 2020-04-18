@@ -31,7 +31,6 @@ class RingBuffer:
         return self.data
 
 class ConsoleAppServer:
-    server_started = False
     process = None
     thread = None
     connection_queues = {}
@@ -92,40 +91,103 @@ class ConsoleAppServer:
         self.ring.append(command)
         self.process.stdin.write(command + '\n')
 
+class ChatServer:
+    thread = None
+    connection_queues = {}
+    loop = asyncio.get_event_loop()
+    ring = RingBuffer(20)
+
+    def create_queue(self, websocket):
+        queue = asyncio.Queue()
+        self.connection_queues[websocket] = queue
+        return queue
+
+    def destroy_queue(self, websocket):
+        q = self.connection_queues.pop(websocket)
+        while True:
+            try:
+                q.get_nowait()
+            except asyncio.QueueEmpty:
+                print("chat queue is drained")
+                break
+
+    def broadcast_message(self, message):
+        for queue in self.connection_queues.values():
+            queue.put_nowait(message)
+
+    def send(self, command):
+        self.broadcast_message(command)
+        self.ring.append(command)
+
 
 cas = None
+chat = ChatServer()
 
-async def command_handler(websocket, path):
+async def console_command_handler(websocket, path):
     async for message in websocket:
         print(f"received command: {message}")
         cas.send(message)
 
-async def log_handler(websocket, path):
+async def console_log_handler(websocket, path):
     queue = cas.create_queue(websocket)
     while True:
         log = await queue.get()
         queue.task_done()
         await websocket.send(log)
+
+async def incoming_chat_handler(websocket, path):
+    async for message in websocket:
+        chat.send(message)
+
+async def group_chat_handler(websocket, path):
+    queue = chat.create_queue(websocket)
+    while True:
+        message = await queue.get()
+        queue.task_done()
+        await websocket.send(message)
         
 async def ws_handler(websocket, path):
-    cas.broadcast_message(f"Client connected from {websocket.remote_address}")
+    if path == '/chat':
+        # the chat path
+        handle = 'unknown'
 
-    await websocket.send(f"Connected to RCAS process: {cas.process.args}")
+        chat.broadcast_message(f"[server] {handle} has connected")
 
-    await websocket.send(f"Replaying last {cas.ring.max} console entries...")
+        for message in chat.ring.get():
+            await websocket.send(message)
 
-    for log in cas.ring.get():
-        await websocket.send(log)
+        incoming_chat_task = asyncio.ensure_future(incoming_chat_handler(websocket, path))
+        group_chat_task = asyncio.ensure_future(group_chat_handler(websocket, path))
 
-    command_task = asyncio.ensure_future(command_handler(websocket, path))
-    log_task = asyncio.ensure_future(log_handler(websocket, path))
+        done, pending = await asyncio.wait([incoming_chat_task, group_chat_task], return_when=asyncio.FIRST_COMPLETED)
 
-    done, pending = await asyncio.wait([command_task, log_task], return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            chat.destroy_queue(websocket)
+            chat.broadcast_message(f"[server] {handle} has disconnected")
+            task.cancel()
 
-    for task in pending:
-        cas.destroy_queue(websocket)
-        cas.broadcast_message(f"Client disconnected from {websocket.remote_address}")
-        task.cancel()
+    elif path == '/console':
+        cas.broadcast_message(f"Client connected from {websocket.remote_address}")
+
+        await websocket.send(f"Connected to RCAS process: {cas.process.args}")
+
+        await websocket.send(f"Replaying last {cas.ring.max} console entries...")
+
+        for log in cas.ring.get():
+            await websocket.send(log)
+
+        command_task = asyncio.ensure_future(console_command_handler(websocket, path))
+        log_task = asyncio.ensure_future(console_log_handler(websocket, path))
+
+        done, pending = await asyncio.wait([command_task, log_task], return_when=asyncio.FIRST_COMPLETED)
+
+        for task in pending:
+            cas.destroy_queue(websocket)
+            cas.broadcast_message(f"Client disconnected from {websocket.remote_address}")
+            task.cancel()
+
+    else:
+        await websocket.send("Incorrect path")
 
 def main(argv):
     global cas

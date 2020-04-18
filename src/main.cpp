@@ -23,19 +23,28 @@
 GLFWwindow *g_window;
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 ImGuiContext *imgui = 0;
+
+std::vector<std::string> Chats;
+static char m_chat[1024] = "";
+
 std::vector<std::string> Items;
+static char m_command[1024] = "";
 
 bool m_shouldOutputData = true;
 bool m_shouldAutoScroll = true;
 bool m_shouldScrollToBottom = true;
 bool m_resetFocusAfterEnter = false;
-static char m_command[1024] = "";
+bool m_resetChatFocusAfterEnter = false;
+
 
 void clearLog();
 void sendCommand(const char* command);
-void logMessageHandler(const std::string &msg);
+void sendChat(const char* chat);
+void logMessageHandler(const std::string& message);
+void chatMessageHandler(const std::string& message);
 
 EMSCRIPTEN_WEBSOCKET_T sendSocket;
+EMSCRIPTEN_WEBSOCKET_T chatSocket;
 
 EM_BOOL webSocketOpen(int eventType, const EmscriptenWebSocketOpenEvent *e, void *userData)
 {
@@ -62,10 +71,22 @@ EM_BOOL webSocketMessage(int eventType, const EmscriptenWebSocketMessageEvent *e
 	printf("message(eventType=%d, userData=%d, data=%s, numBytes=%d, isText=%d)\n", eventType, (int)userData, e->data, e->numBytes, e->isText);
 	if (e->isText)
     {
-		printf("text data: \"%s\"\n", e->data);
         std::stringstream ss;
         ss << e->data;
         logMessageHandler(ss.str());
+    }
+	
+	return 0;
+}
+
+EM_BOOL chatWebSocketMessage(int eventType, const EmscriptenWebSocketMessageEvent *e, void *userData)
+{
+	printf("chat message(eventType=%d, userData=%d, data=%s, numBytes=%d, isText=%d)\n", eventType, (int)userData, e->data, e->numBytes, e->isText);
+	if (e->isText)
+    {
+        std::stringstream ss;
+        ss << e->data;
+        chatMessageHandler(ss.str());
     }
 	
 	return 0;
@@ -119,7 +140,52 @@ void loop()
     ImGui::NewFrame();
 
     {
-        ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(200, height), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(width - 200, 0), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Chat");
+
+        const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing(); // 1 separator, 1 input text
+
+        ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar); // Leave room for 1 separator + 1 InputText
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tighten spacing
+
+        for (unsigned int i = 0; i < Chats.size(); i++)
+        {
+            const char *item = Chats[i].c_str();
+            ImGui::TextUnformatted(item);
+        }
+
+        if (m_shouldScrollToBottom || (m_shouldAutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()))
+        {
+            ImGui::SetScrollHere(1.0f);
+        }
+
+        m_shouldScrollToBottom = false;
+
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
+
+
+        if (m_resetChatFocusAfterEnter)
+        {
+            m_resetChatFocusAfterEnter = false;
+            ImGui::SetKeyboardFocusHere(0);        
+        }
+        ImGui::InputText("", m_chat, 1024);
+        ImGui::SameLine();
+
+
+        if (ImGui::Button("Send") || (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Enter])))
+        {
+            sendChat(m_chat);
+            m_resetChatFocusAfterEnter = true;
+        }
+
+        ImGui::End();
+    }
+
+    {
+        ImGui::SetNextWindowSize(ImVec2(width - 200, height), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
         ImGui::Begin("RCAS");
 
@@ -232,7 +298,7 @@ void loop()
         ImGui::SameLine();
 
 
-        if (ImGui::Button("Send") || ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Enter]))
+        if (ImGui::Button("Send") || (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Enter])))
         {
             sendCommand(m_command);
             m_resetFocusAfterEnter = true;
@@ -259,6 +325,9 @@ void loop()
         {
             ImGui::OpenPopup("Options");
         }
+
+        ImGui::SameLine();
+        ImGui::Text("client: 1.0.0-beta.1");
 
         ImGui::End();
     }
@@ -287,9 +356,20 @@ void sendCommand(const char* command)
     *m_command = 0;
 }
 
-void logMessageHandler(const std::string &msg)
+void sendChat(const char* chat)
 {
-    Items.push_back(msg);
+    emscripten_websocket_send_utf8_text(chatSocket, chat);
+    *m_chat = 0;
+}
+
+void logMessageHandler(const std::string& message)
+{
+    Items.push_back(message);
+}
+
+void chatMessageHandler(const std::string& message)
+{
+    Chats.push_back(message);
 }
 
 int init()
@@ -340,30 +420,58 @@ int init()
 
     resizeCanvas();   
 
+    auto port = 9001;
+
     {
-    //websockets
-    EmscriptenWebSocketCreateAttributes attr;
-    emscripten_websocket_init_create_attributes(&attr);
+        // console websocket
+        EmscriptenWebSocketCreateAttributes attr;
+        emscripten_websocket_init_create_attributes(&attr);
 
-    std::stringstream hostnamess;
+        std::stringstream hostnamess;
 
-    hostnamess << "ws://" << (char*) get_hostname() << ":9001/";
-    const char* pszHostname = strdup(hostnamess.str().c_str());
-    attr.url = pszHostname;
-    printf("%s\n", attr.url);
+        hostnamess << "ws://" << (char*) get_hostname() << ":" << port << "/console";
+        const char* pszHostname = strdup(hostnamess.str().c_str());
+        attr.url = pszHostname;
+        printf("%s\n", attr.url);
 
-    std::stringstream connectmsg;
+        std::stringstream connectmsg;
     
-    connectmsg << "Connecting to RCAS at " << attr.url;
+        connectmsg << "Connecting to RCAS at " << attr.url;
 
-    logMessageHandler(connectmsg.str());
+        logMessageHandler(connectmsg.str());
 
-    sendSocket = emscripten_websocket_new(&attr);
+        sendSocket = emscripten_websocket_new(&attr);
 
-    emscripten_websocket_set_onopen_callback(sendSocket, (void*)42, webSocketOpen);
-    emscripten_websocket_set_onclose_callback(sendSocket, (void*)43, webSocketClose);
-    emscripten_websocket_set_onerror_callback(sendSocket, (void*)44, webSocketError);
-    emscripten_websocket_set_onmessage_callback(sendSocket, (void*)45, webSocketMessage);
+        emscripten_websocket_set_onopen_callback(sendSocket, (void*)42, webSocketOpen);
+        emscripten_websocket_set_onclose_callback(sendSocket, (void*)43, webSocketClose);
+        emscripten_websocket_set_onerror_callback(sendSocket, (void*)44, webSocketError);
+        emscripten_websocket_set_onmessage_callback(sendSocket, (void*)45, webSocketMessage);
+    }
+
+    {
+        // chat websocket
+        EmscriptenWebSocketCreateAttributes attr;
+        emscripten_websocket_init_create_attributes(&attr);
+
+        std::stringstream hostnamess;
+
+        hostnamess << "ws://" << (char*) get_hostname() << ":" << port << "/chat";
+        const char* pszHostname = strdup(hostnamess.str().c_str());
+        attr.url = pszHostname;
+        printf("%s\n", attr.url);
+
+        std::stringstream connectmsg;
+    
+        connectmsg << "Connecting to RCAS chat at " << attr.url;
+
+        chatMessageHandler(connectmsg.str());
+
+        chatSocket = emscripten_websocket_new(&attr);
+
+        emscripten_websocket_set_onopen_callback(chatSocket, (void*)42, webSocketOpen);
+        emscripten_websocket_set_onclose_callback(chatSocket, (void*)43, webSocketClose);
+        emscripten_websocket_set_onerror_callback(chatSocket, (void*)44, webSocketError);
+        emscripten_websocket_set_onmessage_callback(chatSocket, (void*)45, chatWebSocketMessage);
     }
 
 
