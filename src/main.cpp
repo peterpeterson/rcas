@@ -42,6 +42,7 @@ EMSCRIPTEN_WEBSOCKET_T sendSocket;
 
 EM_BOOL webSocketOpen(int eventType, const EmscriptenWebSocketOpenEvent *e, void *userData)
 {
+    (void) e;
 	printf("open(eventType=%d, userData=%d)\n", eventType, (int)userData);
 	return 0;
 }
@@ -54,6 +55,7 @@ EM_BOOL webSocketClose(int eventType, const EmscriptenWebSocketCloseEvent *e, vo
 
 EM_BOOL webSocketError(int eventType, const EmscriptenWebSocketErrorEvent *e, void *userData)
 {
+    (void) e;
 	printf("error(eventType=%d, userData=%d)\n", eventType, (int)userData);
 	return 0;
 }
