@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
 
-project(mcsc)
+project(rcas)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic -Wextra -Wno-missing-braces")
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# mcsc - Development web server for webassembly UI
+# rcas - Development web server for webassembly UI
 #
 import http.server, http.server, os
  

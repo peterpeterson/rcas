@@ -1,5 +1,5 @@
 #
-# mcsc
+# RCAS - Remote Console Application Server
 # Peter Peterson <peter@saborgato.com>
 #
 from subprocess import *
@@ -44,12 +44,8 @@ class ConsoleAppServer:
 
             print(line)
 
-            if 'Server started' in line:
-                self.server_started = True
-
-            if self.server_started:
-                for queue in self.connection_queues.values():
-                    self.loop.call_soon_threadsafe(queue.put_nowait, line)
+            for queue in self.connection_queues.values():
+                self.loop.call_soon_threadsafe(queue.put_nowait, line)
 
             self.ring.append(line)
 
@@ -60,11 +56,6 @@ class ConsoleAppServer:
         self.thread = Thread(target=self.enqueue_output, args=(self.process.stdout, self.connection_queues))
         self.thread.daemon = True
         self.thread.start()
-
-        while True:
-            if self.server_started:
-                print("Server has successfully started")
-                break
 
     def close(self):
         self.process.terminate()

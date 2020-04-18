@@ -1,8 +1,8 @@
 FROM trzeci/emscripten:latest
 
-RUN mkdir -p /home/mcsc/build
-WORKDIR /home/mcsc
-COPY . /home/mcsc
+RUN mkdir -p /home/rcas/build
+WORKDIR /home/rcas
+COPY . /home/rcas
 
 ENTRYPOINT ["/emsdk_portable/entrypoint"]
 

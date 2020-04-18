@@ -1,5 +1,5 @@
 //
-// mcsc
+// RCAS WebAssembly/ImGui UI
 // Peter Peterson <peter@saborgato.com>
 //
 #include <stdio.h>
@@ -108,7 +108,7 @@ void loop()
     {
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Bedrock Server Console");
+        ImGui::Begin("Remote Console Application Server");
 
         if (ImGui::Button("Clear"))
         {
@@ -219,7 +219,7 @@ int init()
     // Open a window and create its OpenGL context
     int canvasWidth = 800;
     int canvasHeight = 600;
-    g_window = glfwCreateWindow(canvasWidth, canvasHeight, "WebGui Demo", NULL, NULL);
+    g_window = glfwCreateWindow(canvasWidth, canvasHeight, "RCAS", NULL, NULL);
     if (g_window == NULL)
     {
         fprintf(stderr, "Failed to open GLFW window.\n");
@@ -267,7 +267,7 @@ int init()
 
     std::stringstream connectmsg;
     
-    connectmsg << "Connecting to remote bedrock command injector at " << attr.url;
+    connectmsg << "Connecting to RCAS at " << attr.url;
 
     logMessageHandler(connectmsg.str());
 

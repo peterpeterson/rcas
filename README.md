@@ -1,4 +1,5 @@
-# mcsc-ui
+# RCAS
+## Remote Console Application Server
 
 ## Building with Docker
 ```
