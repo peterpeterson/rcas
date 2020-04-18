@@ -458,15 +458,13 @@ int init()
         hostnamess << "ws://" << (char*) get_hostname() << ":" << port << "/chat";
         const char* pszHostname = strdup(hostnamess.str().c_str());
         attr.url = pszHostname;
-        printf("%s\n", attr.url);
-
-        std::stringstream connectmsg;
-    
-        connectmsg << "Connecting to RCAS chat at " << attr.url;
-
-        chatMessageHandler(connectmsg.str());
+        printf("chat url %s\n", attr.url);
 
         chatSocket = emscripten_websocket_new(&attr);
+        
+        std::stringstream connectmsg;
+        connectmsg << "Chat connected:";
+        chatMessageHandler(connectmsg.str());
 
         emscripten_websocket_set_onopen_callback(chatSocket, (void*)42, webSocketOpen);
         emscripten_websocket_set_onclose_callback(chatSocket, (void*)43, webSocketClose);
