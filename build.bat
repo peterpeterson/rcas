@@ -1,6 +1,6 @@
 @echo off
 SET BASEDIR="%cd%"
-rmdir /q /s build
+rem rmdir /q /s build
 mkdir build
 cd utils/win32
 call docker-build.bat

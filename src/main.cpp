@@ -2,6 +2,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <emscripten/websocket.h>
 #endif
 
 #define GLFW_INCLUDE_ES3
@@ -31,7 +32,48 @@ static char buf1[64] = "";
 
 void clearLog();
 void sendCommand();
-void debugMessageHandler(const std::string &msg);
+void logMessageHandler(const std::string &msg);
+
+EMSCRIPTEN_WEBSOCKET_T sendSocket;
+
+EM_BOOL webSocketOpen(int eventType, const EmscriptenWebSocketOpenEvent *e, void *userData)
+{
+	printf("open(eventType=%d, userData=%d)\n", eventType, (int)userData);
+
+	//emscripten_websocket_send_utf8_text(e->socket, "hello on the other side");
+
+	// char data[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	// emscripten_websocket_send_binary(e->socket, data, sizeof(data));
+
+	// emscripten_websocket_close(e->socket, 0, 0);
+	return 0;
+}
+
+EM_BOOL webSocketClose(int eventType, const EmscriptenWebSocketCloseEvent *e, void *userData)
+{
+	printf("close(eventType=%d, wasClean=%d, code=%d, reason=%s, userData=%d)\n", eventType, e->wasClean, e->code, e->reason, (int)userData);
+	return 0;
+}
+
+EM_BOOL webSocketError(int eventType, const EmscriptenWebSocketErrorEvent *e, void *userData)
+{
+	printf("error(eventType=%d, userData=%d)\n", eventType, (int)userData);
+	return 0;
+}
+
+EM_BOOL webSocketMessage(int eventType, const EmscriptenWebSocketMessageEvent *e, void *userData)
+{
+	printf("message(eventType=%d, userData=%d, data=%s, numBytes=%d, isText=%d)\n", eventType, (int)userData, e->data, e->numBytes, e->isText);
+	if (e->isText)
+    {
+		printf("text data: \"%s\"\n", e->data);
+        std::stringstream ss;
+        ss << e->data;
+        logMessageHandler(ss.str());
+    }
+	
+	return 0;
+}
 
 EM_JS(int, canvas_get_width, (), {
     return Module.canvas.width;
@@ -43,6 +85,14 @@ EM_JS(int, canvas_get_height, (), {
 
 EM_JS(void, resizeCanvas, (), {
     js_resizeCanvas();
+});
+
+EM_JS(const char*, get_hostname, (), {
+    var jsString = window.location.hostname;
+    var lengthBytes = lengthBytesUTF8(jsString)+1;
+    var stringOnWasmHeap = _malloc(lengthBytes);
+    stringToUTF8(jsString, stringOnWasmHeap, lengthBytes);
+    return stringOnWasmHeap;
 });
 
 void loop()
@@ -59,36 +109,29 @@ void loop()
     ImGui::NewFrame();
 
     {
-        std::stringstream ss;
-        ss << "Application average " << 1000.0f / ImGui::GetIO().Framerate << "ms/frame (" << ImGui::GetIO().Framerate << " FPS)";
-        debugMessageHandler(ss.str());
-    }
-
-    {
-
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Server Console");
+        ImGui::Begin("Bedrock Server Console");
 
         if (ImGui::Button("Clear"))
         {
             clearLog();
         }
 
-        ImGui::SameLine();
+        // ImGui::SameLine();
 
-        // Options menu
-        if (ImGui::BeginPopup("Options"))
-        {
-            ImGui::Checkbox("Auto-scroll", &m_shouldAutoScroll);
-            ImGui::EndPopup();
-        }
+        // // Options menu
+        // if (ImGui::BeginPopup("Options"))
+        // {
+        //     ImGui::Checkbox("Auto-scroll", &m_shouldAutoScroll);
+        //     ImGui::EndPopup();
+        // }
 
-        // Options, Filter
-        if (ImGui::Button("Options"))
-        {
-            ImGui::OpenPopup("Options");
-        }
+        // // Options, Filter
+        // if (ImGui::Button("Options"))
+        // {
+        //     ImGui::OpenPopup("Options");
+        // }
 
         ImGui::Separator();
 
@@ -156,11 +199,11 @@ void clearLog()
 
 void sendCommand()
 {
-    Items.push_back(buf1);
+    emscripten_websocket_send_utf8_text(sendSocket, buf1);
     *buf1 = 0;
 }
 
-void debugMessageHandler(const std::string &msg)
+void logMessageHandler(const std::string &msg)
 {
     Items.push_back(msg);
 }
@@ -211,7 +254,45 @@ int init()
     glfwSetKeyCallback(g_window, ImGui_ImplGlfw_KeyCallback);
     glfwSetCharCallback(g_window, ImGui_ImplGlfw_CharCallback);
 
-    resizeCanvas();
+    resizeCanvas();   
+
+    {
+    //websockets
+    EmscriptenWebSocketCreateAttributes attr;
+    emscripten_websocket_init_create_attributes(&attr);
+
+    std::stringstream hostnamess;
+
+    hostnamess << "ws://" << (char*) get_hostname() << ":9001/";
+    //attr.url = hostnamess.str().c_str();
+
+    const char* pszHostname = strdup(hostnamess.str().c_str());
+    attr.url = pszHostname;
+    
+
+
+    printf("%s\n", attr.url);
+
+    std::stringstream connectmsg;
+    
+    connectmsg << "Connecting to remote bedrock command injector at " << attr.url;
+
+    logMessageHandler(connectmsg.str());
+
+    sendSocket = emscripten_websocket_new(&attr);
+
+    {
+        std::stringstream ss;
+        ss << "New web socket returned handle of " << sendSocket;
+        logMessageHandler(ss.str());
+    }
+
+    emscripten_websocket_set_onopen_callback(sendSocket, (void*)42, webSocketOpen);
+    emscripten_websocket_set_onclose_callback(sendSocket, (void*)43, webSocketClose);
+    emscripten_websocket_set_onerror_callback(sendSocket, (void*)44, webSocketError);
+    emscripten_websocket_set_onmessage_callback(sendSocket, (void*)45, webSocketMessage);
+    }
+
 
     return 0;
 }
