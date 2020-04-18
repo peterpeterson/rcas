@@ -23,16 +23,12 @@
 GLFWwindow *g_window;
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 ImGuiContext *imgui = 0;
-bool show_demo_window = true;
-bool show_another_window = true;
 std::vector<std::string> Items;
-ImGuiTextFilter Filter;
 
 bool m_shouldOutputData = true;
 bool m_shouldAutoScroll = true;
 bool m_shouldScrollToBottom = true;
-bool m_isRegistered = false;
-static char m_command[64] = "";
+static char m_command[1024] = "";
 
 void clearLog();
 void sendCommand();
@@ -110,7 +106,7 @@ void loop()
     {
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Remote Console Application Server");
+        ImGui::Begin("RCAS");
 
         if (ImGui::Button("Clear"))
         {
@@ -166,7 +162,7 @@ void loop()
 
 
         ImGui::SetKeyboardFocusHere(0);        
-        ImGui::InputText("", m_command, 64);
+        ImGui::InputText("", m_command, 1024);
         ImGui::SameLine();
 
 
@@ -274,12 +270,6 @@ int init()
     logMessageHandler(connectmsg.str());
 
     sendSocket = emscripten_websocket_new(&attr);
-
-    {
-        std::stringstream ss;
-        ss << "Websocket connected and returned handle of " << sendSocket;
-        logMessageHandler(ss.str());
-    }
 
     emscripten_websocket_set_onopen_callback(sendSocket, (void*)42, webSocketOpen);
     emscripten_websocket_set_onclose_callback(sendSocket, (void*)43, webSocketClose);

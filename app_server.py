@@ -53,6 +53,10 @@ class ConsoleAppServer:
     
     def __init__(self, app='bedrock_server.exe'):
         self.process = Popen([f"{app}"], stdin=PIPE, stdout=PIPE, bufsize=1, universal_newlines=True)
+
+        print(f"Process started: {self.process.args}")
+        print("Console output starting...")
+
         self.thread = Thread(target=self.enqueue_output, args=(self.process.stdout, self.connection_queues))
         self.thread.daemon = True
         self.thread.start()
@@ -87,24 +91,26 @@ class ConsoleAppServer:
         self.process.stdin.write(command + '\n')
 
 
-ms = ConsoleAppServer('C:\\Users\\peter\\Desktop\\bedrock-server-1.14.60.5\\bedrock_server.exe')
+cas = ConsoleAppServer('C:\\Users\\peter\\Desktop\\bedrock-server-1.14.60.5\\bedrock_server.exe')
 
 async def command_handler(websocket, path):
     async for message in websocket:
         print(f"received command: {message}")
-        ms.send(message)
+        cas.send(message)
 
 async def log_handler(websocket, path):
-    queue = ms.create_queue(websocket)
+    queue = cas.create_queue(websocket)
     while True:
         log = await queue.get()
         queue.task_done()
         await websocket.send(log)
         
 async def ws_handler(websocket, path):
-    ms.broadcast_message(f"Client connected from {websocket.remote_address}")
+    cas.broadcast_message(f"Client connected from {websocket.remote_address}")
 
-    for log in ms.ring.get():
+    await websocket.send(f"Connected to process {cas.process.args}")
+
+    for log in cas.ring.get():
         await websocket.send(log)
 
     command_task = asyncio.ensure_future(command_handler(websocket, path))
@@ -113,8 +119,8 @@ async def ws_handler(websocket, path):
     done, pending = await asyncio.wait([command_task, log_task], return_when=asyncio.FIRST_COMPLETED)
 
     for task in pending:
-        ms.destroy_queue(websocket)
-        ms.broadcast_message(f"Client disconnected from {websocket.remote_address}")
+        cas.destroy_queue(websocket)
+        cas.broadcast_message(f"Client disconnected from {websocket.remote_address}")
         task.cancel()
 
 
