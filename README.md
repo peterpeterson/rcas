@@ -4,7 +4,8 @@
 ```
 build.bat
 ```
-## Running development server
+## Running web development server
+Default port is 9000
 ```
 python server.py
 ```
