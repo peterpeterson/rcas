@@ -108,7 +108,9 @@ async def log_handler(websocket, path):
 async def ws_handler(websocket, path):
     cas.broadcast_message(f"Client connected from {websocket.remote_address}")
 
-    await websocket.send(f"Connected to process {cas.process.args}")
+    await websocket.send(f"Connected to RCAS process: {cas.process.args}")
+
+    await websocket.send(f"Replaying last {cas.ring.max} console entries...")
 
     for log in cas.ring.get():
         await websocket.send(log)
