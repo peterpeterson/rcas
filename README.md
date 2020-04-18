@@ -5,10 +5,12 @@ RCAS is a strange client/server application to remotely control a command line a
 - It has a completely useless chat feature.
 - No security considerations have been made.
 
-It was originally built to wrap a Minecraft bedrock server for remote commands to be executed, but you should be able to adapt it for most command line applications. Maybe it will work for old DOS-based MUDs? Who knows!
+It was originally built to wrap a Minecraft bedrock server for remote commands to be executed. I was sick of my daughter coming to me every 10 minutes to change the environment or settings in her world. She now can enter the commands herself without physical or RDP access to the server. It's hilarious to watch the kids slam commands into the server at the same time. Chaos!
+
+The application is pretty generic and you should be able to adapt it for most command line applications. Maybe it will work for old DOS-based MUDs? Who knows!
 
 The server backend is written in Python 3
-The UI is written in WebAssembly and uses Dear ImGui framework for windowing. Totally overkill, 
+The UI is written in WebAssembly and uses Dear ImGui. Totally overkill.
 
 There is an included docker image for building the UI. Very little prerequisites required.
 
