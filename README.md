@@ -1,10 +1,14 @@
 # RCAS - Remote Console Application Server
-RCAS is a strange client/server application to remotely control console application windows in the web browser. It natively supports multiple clients connected to the same console window. No security considerations have been made.
+RCAS is a strange client/server application to remotely control a command line application in the web browser. 
+
+- It natively supports multiple clients connected to the same application. 
+- It has a completely useless chat feature. 
+- No security considerations have been made.
 
 It was originally built to wrap a Minecraft bedrock server for remote commands to be executed, but you should be able to adapt it for most command line applications.
 
 The server backend is written in Python
-The UI is written in WebAssembly and uses Dear ImGui framework for windowing
+The UI is written in WebAssembly and uses Dear ImGui framework for windowing. Totally overkill...
 
 There is a build system based on docker included for building the UI. Very little prerequisites required.
 
