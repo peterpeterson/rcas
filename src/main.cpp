@@ -28,10 +28,11 @@ std::vector<std::string> Items;
 bool m_shouldOutputData = true;
 bool m_shouldAutoScroll = true;
 bool m_shouldScrollToBottom = true;
+bool m_resetFocusAfterEnter = false;
 static char m_command[1024] = "";
 
 void clearLog();
-void sendCommand();
+void sendCommand(const char* command);
 void logMessageHandler(const std::string &msg);
 
 EMSCRIPTEN_WEBSOCKET_T sendSocket;
@@ -90,6 +91,20 @@ EM_JS(const char*, get_hostname, (), {
     return stringOnWasmHeap;
 });
 
+// Helper to display a little (?) mark which shows a tooltip when hovered.
+static void ShowHelpMarker(const char* desc)
+{
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
 void loop()
 {
     int width = canvas_get_width();
@@ -108,24 +123,71 @@ void loop()
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
         ImGui::Begin("RCAS");
 
-        if (ImGui::Button("Clear"))
+        // TODO: move to separate files -- command pallete
         {
-            clearLog();
-        }
+            const char* items[] = { "None", "Minecraft Bedrock" };
+            static int item_current = 1;
+            ImGui::Combo("command palete", &item_current, items, IM_ARRAYSIZE(items));
+            ImGui::SameLine(); ShowHelpMarker("Please select from the available command palete\n");
+            // bedrock buttons
+            if (item_current == 1)
+            {
+                ImGui::Text("Time");
+                ImGui::SameLine();
 
-        ImGui::SameLine();
+                if (ImGui::Button("Day"))
+                {
+                    sendCommand("time set day");
+                }
 
-        // Options menu
-        if (ImGui::BeginPopup("Options"))
-        {
-            ImGui::Checkbox("Auto-scroll", &m_shouldAutoScroll);
-            ImGui::EndPopup();
-        }
+                ImGui::SameLine();
 
-        // Options, Filter
-        if (ImGui::Button("Options"))
-        {
-            ImGui::OpenPopup("Options");
+                if (ImGui::Button("Night"))
+                {
+                    sendCommand("time set night");
+                }
+
+
+                ImGui::SameLine();
+                ImGui::Text("Weather");
+                ImGui::SameLine();
+
+                if (ImGui::Button("Clear"))
+                {
+                    sendCommand("weather clear");
+                }
+
+                ImGui::SameLine();
+
+                if (ImGui::Button("Rainy"))
+                {
+                    sendCommand("weather rain");
+                }
+
+                ImGui::SameLine();
+
+                if (ImGui::Button("Thunder"))
+                {
+                    sendCommand("weather thunder");
+                }
+
+                ImGui::SameLine();
+                ImGui::Text("Game Mode");
+                ImGui::SameLine();
+
+                if (ImGui::Button("Creative All"))
+                {
+                    sendCommand("gamemode creative @a");
+                }
+
+                ImGui::SameLine();
+
+                if (ImGui::Button("Survival All"))
+                {
+                    sendCommand("gamemode survival @a");
+                }
+            }
+
         }
 
         ImGui::Separator();
@@ -161,14 +223,41 @@ void loop()
         ImGui::EndChild();
 
 
-        ImGui::SetKeyboardFocusHere(0);        
+        if (m_resetFocusAfterEnter)
+        {
+            m_resetFocusAfterEnter = false;
+            ImGui::SetKeyboardFocusHere(0);        
+        }
         ImGui::InputText("", m_command, 1024);
         ImGui::SameLine();
 
 
         if (ImGui::Button("Send") || ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Enter]))
         {
-            sendCommand();
+            sendCommand(m_command);
+            m_resetFocusAfterEnter = true;
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Clear"))
+        {
+            clearLog();
+        }
+
+        ImGui::SameLine();
+
+        // Options menu
+        if (ImGui::BeginPopup("Options"))
+        {
+            ImGui::Checkbox("Auto-scroll", &m_shouldAutoScroll);
+            ImGui::EndPopup();
+        }
+
+        // Options, Filter
+        if (ImGui::Button("Options"))
+        {
+            ImGui::OpenPopup("Options");
         }
 
         ImGui::End();
@@ -192,9 +281,9 @@ void clearLog()
     Items.clear();
 }
 
-void sendCommand()
+void sendCommand(const char* command)
 {
-    emscripten_websocket_send_utf8_text(sendSocket, m_command);
+    emscripten_websocket_send_utf8_text(sendSocket, command);
     *m_command = 0;
 }
 
