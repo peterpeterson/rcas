@@ -4,6 +4,8 @@
 #
 from subprocess import *
 from threading import Thread
+import sys
+import getopt
 import websockets
 import asyncio
 
@@ -51,7 +53,7 @@ class ConsoleAppServer:
 
         out.close()
     
-    def __init__(self, app='bedrock_server.exe'):
+    def __init__(self, app):
         self.process = Popen([f"{app}"], stdin=PIPE, stdout=PIPE, bufsize=1, universal_newlines=True)
 
         print(f"Process started: {self.process.args}")
@@ -91,7 +93,7 @@ class ConsoleAppServer:
         self.process.stdin.write(command + '\n')
 
 
-cas = ConsoleAppServer('C:\\Users\\peter\\Desktop\\bedrock-server-1.14.60.5\\bedrock_server.exe')
+cas = None
 
 async def command_handler(websocket, path):
     async for message in websocket:
@@ -125,8 +127,48 @@ async def ws_handler(websocket, path):
         cas.broadcast_message(f"Client disconnected from {websocket.remote_address}")
         task.cancel()
 
+def main(argv):
+    global cas
+    port = 9001
+    app = None
 
-start_server = websockets.serve(ws_handler, "0.0.0.0", 9001)
+    if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
+        print("This application requires Python 3.6 or higher!")
+        print("You are using Python {}.{}.".format(sys.version_info.major, sys.version_info.minor))
+        sys.exit(1)
 
-asyncio.get_event_loop().run_until_complete(start_server)
-asyncio.get_event_loop().run_forever()
+    help = \
+        'usage: app_server.py [options]\n' \
+        'options:\n' \
+        '\t-h\t\tShow help.\n' \
+        '\t-p --port\tListening port.' \
+        '\n' \
+        '\t-a --app\tpath to application to remote\n'
+
+    try:
+        opts, args = getopt.getopt(argv, "hp:a:", [ "port=", 
+                                                    "app=" ])
+    except getopt.GetoptError:
+        print("Invalid args")
+        print(help)
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print(help)
+            sys.exit()
+        elif opt in ("-p", "--port"):
+            port = int(arg)
+        elif opt in ("-a", "--app"):
+            app = arg
+
+    cas = ConsoleAppServer(app or 'C:\\Users\\peter\\Desktop\\bedrock-server-1.14.60.5\\bedrock_server.exe')
+
+    start_server = websockets.serve(ws_handler, "0.0.0.0", port)
+
+    print(f"Server listening on port {port}")
+
+    asyncio.get_event_loop().run_until_complete(start_server)
+    asyncio.get_event_loop().run_forever()
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
