@@ -8,11 +8,17 @@ The UI is written in WebAssembly and uses Dear ImGui framework for windowing
 
 There is a build system based on docker included for building the UI. Very little prerequisites required.
 
-## Building with Docker
+## Compatability
+Seems to work on Windows, macOS, and Linux w/ Chrome and Firefox. iOS does not seem to render, probably due to GLFW bindings...
+
+## Building
+### UI
+Make sure Docker is installed
 ```
 build.bat
 ```
-## Running web development server
+## Running
+### Running web development server
 Default port is 9000
 ```
 python web_server.py
@@ -25,4 +31,4 @@ Default application is bedrock_server.exe (was originally built to remote minecr
 python app_server.py
 ```
 
-## Browse to localhost:9000
+Browse to http://localhost:9000

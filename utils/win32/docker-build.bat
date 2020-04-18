@@ -1,3 +1,3 @@
 @echo off
 cd ../..
-docker build -t mcsc-ui:latest .
+docker build -t rcas-ui:latest .
