@@ -115,9 +115,10 @@ class ChatServer:
         for queue in self.connection_queues.values():
             queue.put_nowait(message)
 
-    def send(self, command):
-        self.broadcast_message(command)
-        self.ring.append(command)
+    def send(self, handle, message):
+        message = f"[{handle}] {message}"
+        self.broadcast_message(message)
+        self.ring.append(message)
 
 
 cas = None
@@ -135,9 +136,9 @@ async def console_log_handler(websocket, path):
         queue.task_done()
         await websocket.send(log)
 
-async def incoming_chat_handler(websocket, path):
+async def incoming_chat_handler(websocket, path, handle):
     async for message in websocket:
-        chat.send(message)
+        chat.send(handle, message)
 
 async def group_chat_handler(websocket, path):
     queue = chat.create_queue(websocket)
@@ -149,14 +150,14 @@ async def group_chat_handler(websocket, path):
 async def ws_handler(websocket, path):
     if path == '/chat':
         # the chat path
-        handle = 'unknown'
+        handle = str(websocket.remote_address[1])
 
         chat.broadcast_message(f"[server] {handle} has connected")
 
         for message in chat.ring.get():
             await websocket.send(message)
 
-        incoming_chat_task = asyncio.ensure_future(incoming_chat_handler(websocket, path))
+        incoming_chat_task = asyncio.ensure_future(incoming_chat_handler(websocket, path, handle))
         group_chat_task = asyncio.ensure_future(group_chat_handler(websocket, path))
 
         done, pending = await asyncio.wait([incoming_chat_task, group_chat_task], return_when=asyncio.FIRST_COMPLETED)
