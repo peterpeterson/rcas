@@ -4,9 +4,6 @@
 #
 from subprocess import *
 from threading import Thread
-import time
-import socket
-import sys
 import websockets
 import asyncio
 
