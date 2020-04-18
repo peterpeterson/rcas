@@ -8,6 +8,10 @@ The UI is written in WebAssembly and uses Dear ImGui framework for windowing
 
 There is a build system based on docker included for building the UI. Very little prerequisites required.
 
+## Screenshot
+Running inside Chrome
+![Alt text](/rcas-screencap.PNG?raw=true "RCAS in Chrome")
+
 ## Compatability
 Seems to work on Windows, macOS, and Linux w/ Chrome and Firefox. iOS does not seem to render, probably due to GLFW bindings...
 
