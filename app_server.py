@@ -224,7 +224,7 @@ def main(argv):
         elif opt in ("-a", "--app"):
             app = arg
 
-    cas = ConsoleAppServer(app or 'C:\\Users\\peter\\Desktop\\bedrock-server-1.14.60.5\\bedrock_server.exe')
+    cas = ConsoleAppServer(app)
 
     start_server = websockets.serve(ws_handler, "0.0.0.0", port)
 
